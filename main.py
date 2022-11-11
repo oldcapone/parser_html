@@ -1,16 +1,29 @@
-# This is a sample Python script.
+import re
+from datetime import datetime
+from csv import DictWriter
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+from bs4 import BeautifulSoup
+from requests import get
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+new = f'/feed/?q=FastAPI'
+with open('base.csv', mode='w', encoding='utf8') as f:
+    tt = DictWriter(f, fieldnames=['date', 'title', 'link', 'text'], delimiter=';')
+    tt.writeheader()
+    while new:
+        row = {}
+        res = get(f'https://pythondigest.ru{new}')
+        soup = BeautifulSoup(res.text, 'html.parser')
+        for tag in soup.find_all('div', class_='item-container'):
+            title = tag.find(rel=['nofollow'])
+            row['title'] = title.get_text()
+            row['link'] = title.get('href')
+            dat = tag.find('small')
+            d1 = re.search(r'\d{2}\.\d{2}\.\d{4}', dat.get_text())[0]
+            d2 = datetime.strptime(d1, '%d.%m.%Y').date()
+            row['date'] = d2
+            row['text'] = ''.join([x.get_text() for x in tag.find_all('p')])
+            tt.writerow(row)
+        ss = soup.find('ul', class_='pagination pagination-sm')
+        p = ss.find_all('li')[-1]
+        new = p.a.get('href')
